@@ -103,12 +103,11 @@ class App(customtkinter.CTk):
         self.location_text.configure(text=selected_location_name)
 
     def history_add(self, location: str, layout: str) -> dict:
+        self.logs.debug("Starting loop")
         for track in self.session_history:
-            self.logs.debug("Starting loop")
             if track['location'] == location:
                 self.logs.debug(f"{track} found")
                 if layout in track['layout']:
-                    self.logs.debug(f"{track} found")
                     break
                 else:
                     track['layout'].append(layout)
@@ -116,17 +115,12 @@ class App(customtkinter.CTk):
                     break
             else:
                 self.session_history.append({'location': location, 'layout': [layout]})
-                self.logs.debug(f"Added {location}: {layout}")
-        self.logs.debug("SESSION HISTORY:")
-        self.logs.debug(self.session_history)
     
     def reset_history(self):
         self.logs.info("RESETTING HISTORY!")
         self.session_history = [
             {'location': "", "layout": []}
         ]
-        self.logs.debug("SESSION HISTORY")
-        self.logs.debug(self.session_history)
         self.location_text.configure(text="Press the button!")
         self.layout_text.configure(text="Press the button!")
 
