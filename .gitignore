@@ -2,3 +2,4 @@ venv/
 Settings/
 __pycache__/
 Logs/
+.DS_store
