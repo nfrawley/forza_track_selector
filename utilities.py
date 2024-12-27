@@ -1,5 +1,8 @@
-import os, dotenv, logging, datetime, platform, subprocess, socket, winwifi
+import os, dotenv, logging, datetime, platform, subprocess, socket
 from pathlib import Path
+
+if platform.system() == "Windows":
+    import winwifi
 
 class env:
     @staticmethod
