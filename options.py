@@ -28,3 +28,5 @@ tracks_list = [
     {"location": "WeatherTech Raceway Laguna Seca", "layout": ["Track_layout_1", "Track_layout_2"]},
     {"location": "Yas Marina Circuit", "layout": ["Track_layout_1", "Track_layout_2"]}
 ]
+
+weather_list = ["Clear", "Rain", "Fog", "Overcast"]
