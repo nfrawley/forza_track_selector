@@ -1,4 +1,4 @@
-import customtkinter, utilities, tracks, random
+import customtkinter, utilities, options, random
 from pathlib import Path
 
 class App(customtkinter.CTk):
@@ -14,7 +14,6 @@ class App(customtkinter.CTk):
         self.session_history = [
             {'location': "", "layout": []}
         ]
-
         # Create env if it doesn't exist
         x = utilities.files.check_exist(self.global_env)
         if x['success'] and x['result']:
@@ -44,6 +43,7 @@ class App(customtkinter.CTk):
         else:
             self.logs.error(x['result'])
 
+        # Define the GUI
         self.frame = customtkinter.CTkFrame(self)
         self.frame.grid(row=0, column=0, sticky="nsew")
 
@@ -62,7 +62,7 @@ class App(customtkinter.CTk):
 
         self.weather_label = customtkinter.CTkLabel(self.frame, text="Weather:")
         self.weather_label.grid(row=4, column=0)
-        self.weather_text = customtkinter.CTkLabel(self.frame, text="TEST")
+        self.weather_text = customtkinter.CTkLabel(self.frame, text="")
         self.weather_text.grid(row=4, column=1)
 
         self.reset_button = customtkinter.CTkButton(self.frame, text="Reset", command=self.reset_history)
@@ -70,29 +70,44 @@ class App(customtkinter.CTk):
         
     def random_selection(self):
         # Get number of locations, then randomly select one
-        number_of_locations = len(tracks.tracks_list)
-        self.logs.debug(f"Loaded {number_of_locations} locations from tracks.py")
+        number_of_locations = len(options.tracks_list)
+        self.logs.debug(f"Loaded {number_of_locations} locations from options.py")
         locations_index = number_of_locations - 1
+    
+        # If no-repeat is enabled, try to avoid selecting the same location
         selected_location_int = random.randint(0, locations_index)
-        selected_location_name = tracks.tracks_list[selected_location_int]['location']
+        selected_location_name = options.tracks_list[selected_location_int]['location']
+    
+        # If the location repeats and no-repeat is enabled, re-roll
+        x = utilities.env.load(self.global_env, 'NO_REPEAT')
+        if x['success']:
+            if x['result'] == 'Yes':
+                # Ensure that we don't pick the same location twice in a row
+                while selected_location_name == self.location_text._text:
+                    self.logs.debug(f"Re-rolling location to avoid repeating {self.location_text._text}")
+                    selected_location_int = random.randint(0, locations_index)
+                    selected_location_name = options.tracks_list[selected_location_int]['location']
+    
         self.logs.info(f"Selected location: {selected_location_name}")
 
         # Get number of layouts for the selected location, then randomly select one
-        number_of_layouts = len(tracks.tracks_list[selected_location_int]['layout'])
+        number_of_layouts = len(options.tracks_list[selected_location_int]['layout'])
         self.logs.debug(f"Found {number_of_layouts} layout(s) for {selected_location_name}")
         layouts_index = number_of_layouts - 1
         selected_layout_int = random.randint(0, layouts_index)
-        selected_layout_name = tracks.tracks_list[selected_location_int]['layout'][selected_layout_int]
+        selected_layout_name = options.tracks_list[selected_location_int]['layout'][selected_layout_int]
         self.logs.info(f"Selected layout: {selected_layout_name}")
 
         # If no-repeat is set, add to the list of used layouts
-        x = utilities.env.load(self.global_env, 'NO_REPEAT')
         if x['success']:
             match x['result']:
                 case 'Yes':
-                    # Add it to the historical list for session
-                    self.logs.debug("Adding to history list")
-                    self.history_add(selected_location_name, selected_layout_name)
+                    # Check if this location was just used, re-roll if required
+                    if self.history_check(selected_location_name, selected_layout_name):
+                        self.logs.debug(f"{selected_location_name}: {selected_layout_name} exists in history. re-rolling..")
+                        self.random_selection()  # This could be avoided by looping, but you could call again if you must.
+                    else:
+                        self.history_add(selected_location_name, selected_layout_name)
                 case 'No':
                     self.logs.debug("No-repeat not enabled. Not adding to history list.")
         elif not x['success']:
@@ -101,6 +116,7 @@ class App(customtkinter.CTk):
 
         self.layout_text.configure(text=selected_layout_name)
         self.location_text.configure(text=selected_location_name)
+        self.random_weather()
 
     def history_add(self, location: str, layout: str) -> dict:
         self.logs.debug("Starting loop")
@@ -115,13 +131,27 @@ class App(customtkinter.CTk):
                     break
             else:
                 self.session_history.append({'location': location, 'layout': [layout]})
+
+    def history_check(self, location: str, layout: str) -> bool:
+        for track in self.session_history:
+            if track['location'] == location and layout in track['layout']:
+                self.logs.debug(f"Exists in  history: {location} - {layout}")
+                return True
+        return False
     
     def reset_history(self):
         self.logs.info("RESETTING HISTORY!")
         self.session_history = [
             {'location': "", "layout": []}
         ]
-        self.location_text.configure(text="Press the button!")
-        self.layout_text.configure(text="Press the button!")
+        self.location_text.configure(text="")
+        self.layout_text.configure(text="")
+        self.weather_text.configure(text="")
+
+    def random_weather(self):
+        self.logs.debug("Rolling for weather..")
+        selected_weather = options.weather_list[random.randint(0, len(options.weather_list) - 1)]
+        self.logs.debug(f"Selected weather: {selected_weather}")
+        self.weather_text.configure(text=selected_weather)
 
 App().mainloop()
