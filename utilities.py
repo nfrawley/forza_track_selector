@@ -1,50 +1,95 @@
-import os, dotenv, logging, datetime, platform, subprocess, socket
-from pathlib import Path
+"""Noah's common python utilities"""
+import os
+import logging
+import datetime
+import configparser
 
-if platform.system() == "Windows":
-    import winwifi
-
-class env:
+class Ini:
+    """Interact with .ini files."""
     @staticmethod
-    def load(file: str, setting: str) -> dict:
+    def get_sections(file: str) -> dict:
         """
-        Load the value of a setting from a dotenv file.
+        Check all the sections in a .ini file.
 
         Args:
-            file (str): The path to the dotenv file.
-            setting (str): The key of the setting to load.
+            file (str): The path to the .ini file.
 
         Returns:
-            dict: Dictionary with keys 'success' and 'result', where 'success' is False if an exception occurs. 'result' contains the value of requested key, or a string of the exception that occurred.
+            dict: Dictionary with keys 'success' and 'result'.
+            'success' is False if an exception occurs. 
+            'result' lists each section in the .ini, or a string of the exception that occurred.
         """
         try:
-            dotenv.load_dotenv(file)
-            value = os.getenv(setting)
-            return {'success': True, 'result': value}
-        except Exception as e:
+            config = configparser.ConfigParser()
+            config.read(file)
+            sections = config.sections()
+            return {'success': True, 'result': sections}
+        except (configparser.NoSectionError, configparser.NoOptionError,
+                configparser.ParsingError, FileNotFoundError, IOError, OSError) as e:
             return {'success': False, 'result': str(e)}
-    
+
     @staticmethod
-    def write(file: str, setting: str, value: str) -> dict:
+    def load(file: str, section: str, key: str) -> dict:
         """
-        Write a value to a setting in a dotenv file and update the environment variable.
+        Load the value of a key from a .ini file.
 
         Args:
-            file (str): The path to the dotenv file.
-            setting (str): The key of the setting to write.
-            value (str): The value to write to the setting.
+            file (str): The path to the .ini file.
+            section (str): The section of the key to load.
+            key (str): The key to load.
 
         Returns:
-            dict: Dictionary with keys 'success' and 'result', where 'success' is False if an exception occurs. 'result' contains the value of set key, or a string of the exception that occurred.
+            dict: Dictionary with keys 'success' and 'result'.
+            'success' is False if an exception occurs.
+            'result' contains the value of requested key, or string of the exception that occurred.
         """
         try:
-            dotenv.set_key(file, setting, value)
-            os.environ[setting] = value
+            config = configparser.ConfigParser()
+            config.read(file)
+            if section not in config:
+                return {'success': False, 'result': f"Section '{section}' not found."}
+            if key not in config[section]:
+                return {'success': False, 'result': f"Key '{key}' not found: section '{section}'."}
+            value = config[section][key]
             return {'success': True, 'result': value}
-        except Exception as e:
+        except (configparser.NoSectionError, configparser.NoOptionError,
+                configparser.ParsingError, FileNotFoundError, IOError, OSError) as e:
             return {'success': False, 'result': str(e)}
 
-class files:
+    @staticmethod
+    def write(file: str, section: str, key: str, value: str) -> dict:
+        """
+        Write a value to a key in a .ini file.
+
+        Args:
+            file (str): The path to the .ini file.
+            section (str): The section of the key to modify.
+            key (str): The key to modify.
+            value (str): The value of the key.
+
+        Returns:
+            dict: Dictionary with keys 'success' and 'result'.
+            'success' is False if an exception occurs.
+            'result' contains the value of the set key, or a string of the exception that occurred.
+        """
+        try:
+            if not Files.check_exist(file)['result']:
+                Files.create(file)
+            config = configparser.ConfigParser()
+            config.read(file)
+            if not config.has_section(section):
+                config.add_section(section)
+            config.set(section, key, value)
+            with open(file, 'w', encoding='utf-8') as configfile:
+                config.write(configfile)
+            return {'success': True, 'result': value}
+        except (configparser.NoSectionError, configparser.ParsingError,
+                FileNotFoundError, IOError) as e:
+            return {'success': False, 'result': str(e)}
+
+class Files:
+    """Interact with files."""
+
     @staticmethod
     def check_exist(file: str) -> dict:
         """
@@ -54,16 +99,19 @@ class files:
             file (str): The path to the file to check.
 
         Returns:
-            dict: Dictionary with keys 'success' and 'result', where 'success' is False if an exception occurs. 'result' contains True if file exists, False if the file does not exist, or a string of the exception that occurred.
+            dict: Dictionary with keys 'success' and 'result'.
+            'success' is False if an exception occurs.
+            'result' contains True if file exists, False if the file does not exist -
+            or a string of the exception that occurred.
         """
         try:
-            with open(file):
+            with open(file, 'r', encoding='utf-8'):
                 return {'success': True, 'result': True}
         except FileNotFoundError:
             return {'success': True, 'result': False}
-        except Exception as e:
+        except (OSError, IOError) as e:
             return {'success': False, 'result': str(e)}
-    
+
     @staticmethod
     def create(file: str) -> dict:
         """
@@ -73,16 +121,20 @@ class files:
             file (str): The path to the file to create.
 
         Returns:
-            dict: Dictionary with keys 'success' and 'result', where 'success' is False if an exception occurs. 'result' contains True if file was created, or a string of the exception that occurred.
+            dict: Dictionary with keys 'success' and 'result'.
+            'success' is False if an exception occurs.
+            'result' contains True if file was created, or a string of the exception that occurred.
         """
         try:
+            print(f"Attempting to create file at: {file}")  # Debugging line
             os.makedirs(os.path.dirname(file), exist_ok=True)
-            with open(file, 'w') as f:
-                pass
+            with open(file, 'w', encoding='utf-8') as f:
+                f.write('[DEFAULT]\n')  # Placeholder section
             return {'success': True, 'result': True}
-        except Exception as e:
+        except (OSError, IOError) as e:
             return {'success': False, 'result': str(e)}
-    
+
+
     @staticmethod
     def remove(file: str) -> dict:
         """
@@ -92,17 +144,22 @@ class files:
             file (str): The path to the file to remove.
 
         Returns:
-            dict: Dictionary with keys 'success' and 'result', where 'success' is False if an exception occurs. 'result' contains True if file was removed, False if the file was not found, or a string of the exception that occurred.
+            dict: Dictionary with keys 'success' and 'result'.
+            'success' is False if an exception occurs.
+            'result' contains True if file was removed, False if the file was not found -
+            or a string of the exception that occurred.
         """
         try:
             os.remove(file)
             return {'success': True, 'result': True}
         except FileNotFoundError:
             return {'success': True, 'result': False}
-        except Exception as e:
+        except (OSError, IOError) as e:
             return {'success': False, 'result': str(e)}
 
-class logs:
+class Logs:
+    """Interact with logs."""
+
     def __init__(self, app_name: str, *args, **kwargs):
         """
         Start a logger for the app you're calling from.
@@ -111,69 +168,76 @@ class logs:
             app_name: Used to identify app (or section of app) adding to logfile.
         """
         super().__init__(*args, **kwargs)
-        # If the logging env file does not exist, create it. Default to level INFO.
-        log_settings = str(Path('Settings/logging.env'))
-        x = files.check_exist(log_settings)
-        if x['success'] and x['result']:
-            print(f"File exists: {log_settings}")
-        # If file is not found, create it
-        elif x['success'] and not x['result']:
-            y = files.create(log_settings)
-            # Check if creation was successful
-            match y['success']:
-                # If file was created, add default settings
-                case True: 
-                    print(f"File created: {log_settings}")
-                    settings = {
-                        'LOGGING_LEVEL': 'INFO',
-                        'LOGGING_DIR': 'Logs/',
-                    }
-                    for key, value in settings.items():
-                        z = env.write(log_settings, key, value)
-                        if z['success']:
-                            print(f"Set {key} = {value} in {log_settings}")
-                        else:
-                            print(f"Couldn't write {key} = {value} in {log_settings}")
-                            print(f"{z['result']}")
-                case False: 
-                    print(f"Error creating file: {y['result']}")
-        # If there was an exception, print it (since logs not active yet)
-        else:
-            print(x['result'])
 
-        # Load logging settings
-        load_level = env.load(log_settings, 'LOGGING_LEVEL')
-        level = load_level['result']
+        # Define the path for Settings.ini relative to the current working directory
+        log_settings = os.path.join(os.getcwd(), 'Settings.ini')
+
+        # Check if 'Settings.ini' exists; if not, create it
+        x = Files.check_exist(log_settings)
+        if x['success'] and not x['result']:
+            # If Settings.ini doesn't exist, create it and set default logging settings
+            print(f"Settings.ini not found, creating it: {log_settings}")
+            y = Files.create(log_settings)
+            if y['success']:
+                print(f"File created: {log_settings}")
+                settings = {
+                    'LOGGING_LEVEL': 'INFO',
+                    'LOGGING_DIR': 'Logs/',
+                }
+                # Ensure 'LOGGING' section and default settings are written
+                config = configparser.ConfigParser()
+                config.read(log_settings)
+                if not config.has_section('LOGGING'):
+                    config.add_section('LOGGING')
+                for key, value in settings.items():
+                    config.set('LOGGING', key, value)
+                # Write settings back to the config file
+                with open(log_settings, 'w', encoding='utf-8') as configfile:
+                    config.write(configfile)
+            else:
+                print(f"Error creating file: {y['result']}")
+
+        # Load the configuration settings for logging
+        config = configparser.ConfigParser()
+        config.read(log_settings)
+
+        # Ensure the 'LOGGING' section exists before reading settings
+        if not config.has_section('LOGGING'):
+            print(f"Error: 'LOGGING' section missing in {log_settings}")
+            level = 'INFO'  # Default to INFO if section is missing
+        else:
+            load_level = Ini.load(log_settings, 'LOGGING', 'LOGGING_LEVEL')
+            level = load_level['result'] if load_level['success'] else 'INFO'
+
+        # Set up logging
         self.app_logger = logging.getLogger()
         self.app = app_name
         today = datetime.datetime.now().strftime("%b-%d-%Y")
         log_path = f"Logs/{today}.log"
-        
-        # If file doesn't exist yet, do it.
-        x = files.check_exist(log_path)
-        if x['success'] and x['result']:
-            print(f"File exists: {log_path}")
-        # If file is not found, create it
-        elif x['success'] and not x['result']:
-            y = files.create(log_path)
-            # Check if creation was successful
-            match y['success']:
-                # If file was created, add default settings
-                case True: 
-                    print(f"Created {log_path}")
-                case False: 
-                    print(f"Error creating file: {y['result']}")
-        # If there was an exception, print it (since logs not active yet)
-        else:
-            print(x['result'])
 
+        # Ensure the 'Logs' directory exists before creating log file
+        log_dir = 'Logs'
+        x = Files.check_exist(log_dir)
+        if x['success'] and not x['result']:
+            os.makedirs(log_dir, exist_ok=True)  # Create the directory if it doesn't exist
+
+        # Ensure log file is created
+        x = Files.check_exist(log_path)
+        if x['success'] and not x['result']:
+            y = Files.create(log_path)
+            if y['success']:
+                print(f"Created {log_path}")
+            else:
+                print(f"Error creating file: {y['result']}")
+        else:
+            print(f"Log file exists: {log_path}")
+
+        # Set up the logging configuration
         logging.basicConfig(filename=log_path, format="%(message)s")
-        # Convert string to actual logging level
         self.level = level.upper() if level else 'INFO'
         self.app_logger.setLevel(getattr(logging, self.level))
         print(f"Logging level set to: {level}")
 
-    # Set the logging level if it needs to be updated
     def set_level(self, level: str):
         """
         Sets the logging level.
@@ -181,136 +245,22 @@ class logs:
         Args:
             level: Accepts (INFO/DEBUG/ERROR/CRITICAL).
         """
-        self.new_level = level.upper()
-        self.app_logger.setLevel(getattr(logging, self.new_level))
-        print(f"Logging level updated to {self.new_level}")
+        new_level = level.upper()
+        self.app_logger.setLevel(getattr(logging, new_level))
+        print(f"Logging level updated to {new_level}")
 
-    # Print to log file INFO message
     def info(self, message: str) -> None:
-        """
-        Enter to the logfile an INFO entry. Format: DateTime - Appname - INFO: Message.
+        """ Log an INFO entry. """
+        self.app_logger.info("%s - INFO: %s", self.app, message)
 
-        Args:
-            message: What to send to the log.
-        """
-        self.app_logger.info(f"{self.app} - INFO: {message}")
-    
-    # Print to log file DEBUG message
     def debug(self, message: str) -> None:
-        """
-        Enter to the logfile a DEBUG entry. Format: DateTime - Appname - DEBUG: Message.
+        """ Log a DEBUG entry. """
+        self.app_logger.debug("%s - DEBUG: %s", self.app, message)
 
-        Args:
-            message: What to send to the log.
-        """
-        self.app_logger.debug(f"{self.app} - DEBUG: {message}")
-
-    # Print to log file CRTICAL message
-    def critical(self, message: str) -> None:
-        """
-        Enter to the logfile a CRITICAL entry. Format: DateTime - Appname - CRITICAL: Message.
-
-        Args:
-            message: What to send to the log.
-        """
-        self.app_logger.critical(f"{self.app} - CRITICAL: {message}")
-
-    # Print to log file ERROR message
     def error(self, message: str) -> None:
-        """
-        Enter to the logfile an ERROR entry. Format: DateTime - Appname - ERROR: Message.
+        """ Log an ERROR entry. """
+        self.app_logger.error("%s - ERROR: %s", self.app, message)
 
-        Args:
-            message: What to send to the log.
-        """
-        self.app_logger.error(f"{self.app} - ERROR: {message}")
-
-class Network:
-    @staticmethod
-    def check_connection() -> dict:
-        """
-        Check if device is connected to internet.
-
-        Args:
-            None
-
-        Returns:
-            dict: Dictionary with keys 'success', 'result' and 'type' where 'success' is False if an exception occurs. 'result' contains True if device is connected to internet, False if it is not, or a string of the exception that occurred. 'Type' contains the network connection media type (if applicable).
-        """
-        try:
-        # Connect to cloudflare to check connectivity
-            socket.create_connection(("1.1.1.1", 53), timeout=3)
-        except OSError:
-            return {'success': True, 'result': False, 'type': ""}
-        except Exception as e:
-            return {'success': False, 'result': str(e), 'type': ""}
-        
-        if platform.system() == 'Windows':
-            try:
-                output = subprocess.check_output("netsh interface show interface", shell=True, text=True)
-                for line in output.splitlines():
-                    if "Connected" in line:
-                        if "Wi-Fi" in line:
-                            return {'success': True, 'result': True, 'type': "Wi-Fi"}
-                        elif "Ethernet" in line:
-                            return {'success': True, 'result': True, 'type': "Ethernet"}
-                        else:
-                            # How did you get here???
-                            return {'success': False, 'result': "Something is horribly wrong.. How are you connected to internet without Wi-Fi or Ethernet?"}
-            except subprocess.SubprocessError as e:
-                return {'success': False, 'result': str(e), 'type': ""}
-
-        elif platform.system() == "Linux":
-            try:
-            # Check interfaces on Linux (tested on raspian)
-                output = subprocess.check_output("nmcli -t -f TYPE,STATE d", shell=True, text=True)
-                for line in output.splitlines():
-                    if "connected" in line:
-                        if "wifi" in line:
-                            return {'success': True, 'result': True, 'type': "Wi-Fi"}
-                        elif "ethernet" in line:
-                            return {'success': True, 'result': True, 'type': "Ethernet"}
-            except subprocess.SubprocessError as e:
-                return {'success': False, 'result': str(e), 'type': ""}
-            
-        elif platform.system() == "Darwin":
-            return {'success': True, 'result': True, 'type': "MacOS: operation not supported"}
-
-        return {'success': False, 'result': "Unknown system type"}
-    
-    @staticmethod
-    def search_wifi() -> dict:
-        """
-        Check available wifi networks.
-
-        Args:
-            None
-
-        Returns:
-            dict: Dictionary with keys 'success', 'result' where 'success' is False if an exception occurs. 'result' will be an list of available Wi-Fi networks.
-        """
-        wifi_list = []
-        if platform.system() == 'Windows':
-            try:
-                output = winwifi.WinWiFi.scan()
-                for item in output:
-                    wifi_list.append(item.ssid)
-                cleaned_list = list(set(filter(bool, wifi_list)))
-            except Exception as e:
-                return {'success': False, 'result': str(e)}
-            return {'success': True, 'result': cleaned_list}
-
-        elif platform.system() == "Linux":
-            try:
-                output = subprocess.check_output("nmcli -t -f SSID dev wifi list", shell=True, text=True)
-                for line in output.splitlines():
-                    wifi_list.append(str(line))
-                # This will remove duplicate SSID's (In case of 2.4 and 5GHz, and any empty values in list)
-                cleaned_list = list(set(filter(bool, wifi_list)))
-            except Exception as e:
-                return {'success': False, 'result': str(e)}
-            return {'success': True, 'result': cleaned_list}
-            
-        elif platform.system() == "Darwin":
-            return {'success': True, 'result': True, 'type': "MacOS: operation not supported"}
-        return {'success': False, 'result': "Unknown system type"}
+    def critical(self, message: str) -> None:
+        """ Log a CRITICAL entry. """
+        self.app_logger.critical("%s - CRITICAL: %s", self.app, message)
