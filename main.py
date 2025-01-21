@@ -6,18 +6,14 @@ import utilities
 
 class App(customtkinter.CTk):
     """Main application class"""
+    # pylint: disable=too-many-instance-attributes
+    # To be reviewed further
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.title("Forza Track Selector")
         self.geometry("800x480")
-        # Init logging
-        self.logs = utilities.Logs(app_name="Forza Track Selector")
         # Init variables
         self.file = 'Settings.ini'
-        self.session_history = [
-            {'location': "", "layout": []}
-        ]
-
         # Define the GUI
         self.frame = customtkinter.CTkFrame(self)
         self.frame.grid(row=0, column=0, sticky="nsew", padx=10)
@@ -63,10 +59,32 @@ class App(customtkinter.CTk):
         self.total_races_text.grid(row=1, column=1, padx=10, pady=10)
 
         # Init classes
+        self.logs = Logs(self)
         self.settings = Settings(self)
         self.history = History(self)
         self.roll = Roll(self)
         self.settings.validate()
+
+class Logs:
+    """Class to manage logs"""
+    def __init__(self, app):
+        self.app = app
+        self.logs = utilities.Logs(app_name="Forza Track Selector")
+    def debug(self, message):
+        """Log a debug message"""
+        self.logs.debug(message)
+    def info(self, message):
+        """Log an info message"""
+        self.logs.info(message)
+    def error(self, message):
+        """Log an error message"""
+        self.logs.error(message)
+    def critical(self, message):
+        """Log a critical message"""
+        self.logs.critical(message)
+    def set_level(self, level):
+        """Set the log level"""
+        self.logs.set_level(level)
 
 class Settings:
     """Class to manage the app settings"""
@@ -131,11 +149,12 @@ class Settings:
 
 class Roll:
     """Class to manage randomization"""
+    # pylint: disable=too-many-instance-attributes
+    # To be reviewed further
     def __init__(self, app):
         self.logs = app.logs
         self.history = app.history
         self.settings = app.settings
-        self.session_history = app.session_history
         self.layout_text = app.layout_text
         self.location_text = app.location_text
         self.weather_text = app.weather_text
@@ -208,28 +227,32 @@ class Roll:
 
 class History:
     """Class to manage the session history"""
+    # pylint: disable=too-many-instance-attributes
+    # To be reviewed further
     def __init__(self, app):
         self.logs = app.logs
         self.settings = app.settings
-        self.history = app.session_history
         self.total_races = 0
         self.total_races_text = app.total_races_text
         self.layout_text = app.layout_text
         self.location_text = app.location_text
         self.weather_text = app.weather_text
         self.time_text = app.time_text
+        self.session_history = [
+            {'location': "", "layout": []}
+        ]
 
     def add(self, location: str, layout: str) -> dict:
         """Add the location and layout to the session history"""
         self.logs.debug("Starting loop")
-        for track in self.history:
+        for track in self.session_history:
             if track['location'] == location:
                 self.logs.debug(f"{track} found")
                 if layout not in track['layout']:
                     track['layout'].append(layout)
                     self.logs.debug(f"{track} added")
                 return
-        self.history.append({'location': location, 'layout': [layout]})
+        self.session_history.append({'location': location, 'layout': [layout]})
         self.logs.debug(f"New track added: {location} - {layout}")
 
     def update_total(self):
@@ -241,7 +264,7 @@ class History:
     def reset(self):
         """Reset the history of tracks and layouts"""
         self.logs.info("RESETTING HISTORY!")
-        self.history = []
+        self.session_history = []
         self.total_races = 0
         self.total_races_text.configure(text=self.total_races)
         self.location_text.configure(text="")
@@ -251,11 +274,10 @@ class History:
 
     def check(self, location: str, layout: str) -> bool:
         """Check if the location and layout exists in the session history"""
-        for track in self.history:
+        for track in self.session_history:
             if track['location'] == location and layout in track['layout']:
                 self.logs.debug(f"Exists in  history: {location} - {layout}")
                 return True
         return False
-
 
 App().mainloop()
