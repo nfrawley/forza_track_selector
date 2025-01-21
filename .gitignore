@@ -1,5 +1,5 @@
 venv/
-Settings/
+*.ini
 __pycache__/
 Logs/
 .DS_store
