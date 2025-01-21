@@ -233,7 +233,7 @@ class Logs:
             print(f"Log file exists: {log_path}")
 
         # Set up the logging configuration
-        logging.basicConfig(filename=log_path, format="%(message)s")
+        logging.basicConfig(filename=log_path, format="%(asctime)s - %(message)s")
         self.level = level.upper() if level else 'INFO'
         self.app_logger.setLevel(getattr(logging, self.level))
         print(f"Logging level set to: {level}")
