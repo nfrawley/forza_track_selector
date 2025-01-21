@@ -30,9 +30,16 @@ class App(customtkinter.CTk):
         self.stats_frame.grid(row=0, column=1, sticky="nsew", padx=10, pady=10)
         self.buttons_frame = customtkinter.CTkFrame(self.frame)
         self.buttons_frame.grid(row=1, column=0, columnspan=2, sticky="nsew", padx=10, pady=10)
-        self.random_button = customtkinter.CTkButton(self.buttons_frame, text="Random Track", command=lambda: [self.roll.track(), self.roll.weather(), self.roll.time(), self.history.update_total()])
+        self.random_button = customtkinter.CTkButton(self.buttons_frame,
+                                                     text="Random Track",
+                                                     command=lambda: [self.roll.track(),
+                                                                      self.roll.weather(),
+                                                                      self.roll.time(),
+                                                                      self.history.update_total()])
         self.random_button.grid(row=0, column=0, padx=10, pady=10)
-        self.reset_button = customtkinter.CTkButton(self.buttons_frame, text="Reset", command=lambda: [self.history.reset()])
+        self.reset_button = customtkinter.CTkButton(self.buttons_frame,
+                                                    text="Reset",
+                                                    command=lambda: [self.history.reset()])
         self.reset_button.grid(row=1, column=0, padx=10, pady=10)
         self.location_label = customtkinter.CTkLabel(self.options_frame, text="Location: ")
         self.location_label.grid(row=2, column=0, padx=10, pady=10)
@@ -142,47 +149,47 @@ class Roll:
         locations_index = number_of_locations - 1
 
         # If no-repeat is enabled, try to avoid selecting the same location
-        selected_location_int = random.randint(0, locations_index)
-        selected_location_name = options.tracks_list[selected_location_int]['location']
+        location_int = random.randint(0, locations_index)
+        location_name = options.tracks_list[location_int]['location']
 
         # If the location repeats and no-repeat is enabled, re-roll
         x = utilities.Ini.load(self.settings.file, 'APP', 'NO_REPEAT')
         if x['success']:
             if x['result'] == 'Yes':
                 # Ensure that we don't pick the same location twice in a row
-                while selected_location_name == self.location_text.cget("text"):
-                    self.logs.debug(f"Re-rolling location to avoid repeating {selected_location_name}")
-                    selected_location_int = random.randint(0, locations_index)
-                    selected_location_name = options.tracks_list[selected_location_int]['location']
+                while location_name == self.location_text.cget("text"):
+                    self.logs.debug(f"Re-rolling location {location_name}")
+                    location_int = random.randint(0, locations_index)
+                    location_name = options.tracks_list[location_int]['location']
 
-        self.logs.info(f"Selected location: {selected_location_name}")
+        self.logs.info(f"Selected location: {location_name}")
 
         # Get number of layouts for the selected location, then randomly select one
-        number_of_layouts = len(options.tracks_list[selected_location_int]['layout'])
-        self.logs.debug(f"Found {number_of_layouts} layout(s) for {selected_location_name}")
+        number_of_layouts = len(options.tracks_list[location_int]['layout'])
+        self.logs.debug(f"Found {number_of_layouts} layout(s) for {location_name}")
         layouts_index = number_of_layouts - 1
-        selected_layout_int = random.randint(0, layouts_index)
-        selected_layout_name = options.tracks_list[selected_location_int]['layout'][selected_layout_int]
-        self.logs.info(f"Selected layout: {selected_layout_name}")
+        layout_int = random.randint(0, layouts_index)
+        layout_name = options.tracks_list[location_int]['layout'][layout_int]
+        self.logs.info(f"Selected layout: {layout_name}")
 
         # Check if no-repeat is enabled, If no-repeat is set, add to the list of used layouts
         x = self.settings.read('NO_REPEAT')
         if x['success']:
             if x['result'] == 'Yes':
                 # Check if this location was just used, re-roll if required
-                if self.history.check(selected_location_name, selected_layout_name):
-                    self.logs.debug(f"{selected_location_name}: {selected_layout_name} exists in history. re-rolling..")
+                if self.history.check(location_name, layout_name):
+                    self.logs.debug("Combo exists in history. re-rolling..")
                     self.track()
                 else:
-                    self.history.add(selected_location_name, selected_layout_name)
+                    self.history.add(location_name, layout_name)
             elif x['result'] == 'No':
                 self.logs.debug("No-repeat not enabled. Not adding to history list.")
         elif not x['success']:
             self.logs.error(f"Error checking {self.settings.file} for 'NO_REPEAT'")
             self.logs.error(x['result'])
 
-        self.layout_text.configure(text=selected_layout_name)
-        self.location_text.configure(text=selected_location_name)
+        self.layout_text.configure(text=layout_name)
+        self.location_text.configure(text=location_name)
 
     def weather(self):
         """Randomly select a weather condition"""
