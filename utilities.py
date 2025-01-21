@@ -126,10 +126,10 @@ class Files:
             'result' contains True if file was created, or a string of the exception that occurred.
         """
         try:
-            print(f"Attempting to create file at: {file}")  # Debugging line
+            print(f"Attempting to create file at: {file}")
             os.makedirs(os.path.dirname(file), exist_ok=True)
             with open(file, 'w', encoding='utf-8') as f:
-                f.write('[DEFAULT]\n')  # Placeholder section
+                f.write('')
             return {'success': True, 'result': True}
         except (OSError, IOError) as e:
             return {'success': False, 'result': str(e)}
