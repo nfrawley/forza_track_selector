@@ -167,6 +167,8 @@ class Logs:
         Args:
             app_name: Used to identify app (or section of app) adding to logfile.
         """
+        # pylint: disable=too-many-localsßß
+        # This is a reasonable amount of local variables for this functionß
         super().__init__(*args, **kwargs)
 
         # Define the path for Settings.ini relative to the current working directory
