@@ -12,8 +12,6 @@ class App(customtkinter.CTk):
         super().__init__(*args, **kwargs)
         self.title("Forza Track Selector")
         self.geometry("800x480")
-        # Init variables
-        self.file = 'Settings.ini'
         # Define the GUI
         self.frame = customtkinter.CTkFrame(self)
         self.frame.grid(row=0, column=0, sticky="nsew", padx=10)
@@ -34,9 +32,13 @@ class App(customtkinter.CTk):
                                                                       self.history.update_total()])
         self.random_button.grid(row=0, column=0, padx=10, pady=10)
         self.reset_button = customtkinter.CTkButton(self.buttons_frame,
-                                                    text="Reset",
+                                                    text="Reset History",
                                                     command=lambda: [self.history.reset()])
         self.reset_button.grid(row=1, column=0, padx=10, pady=10)
+        self.settings_button = customtkinter.CTkButton(self.buttons_frame,
+                                                       text="Settings",
+                                                       command=lambda: [SettingsWindow(self)])
+        self.settings_button.grid(row=2, column=0, padx=10, pady=10)
         self.location_label = customtkinter.CTkLabel(self.options_frame, text="Location: ")
         self.location_label.grid(row=2, column=0, padx=10, pady=10)
         self.location_text = customtkinter.CTkLabel(self.options_frame, text="")
@@ -57,13 +59,129 @@ class App(customtkinter.CTk):
         self.total_races_label.grid(row=1, column=0, padx=10, pady=10)
         self.total_races_text = customtkinter.CTkLabel(self.stats_frame, text="0")
         self.total_races_text.grid(row=1, column=1, padx=10, pady=10)
+        self.load_settings()
 
+    def load_settings(self):
+        """Check all the app settings and apply them"""
         # Init classes
+        self.file = 'Settings.ini'
         self.logs = Logs(self)
         self.settings = Settings(self)
         self.history = History(self)
         self.roll = Roll(self)
         self.settings.validate()
+        self.settings.apply_all()
+
+class SettingsWindow(customtkinter.CTkToplevel):
+    """Settings window class"""
+    # pylint: disable=too-many-instance-attributes
+    # To be reviewed further
+    def __init__(self, app, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.title("Settings")
+        self.geometry("375x375")
+
+        self.settings_frame = customtkinter.CTkFrame(self)
+        self.settings_frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=10)
+        self.appearance_label = customtkinter.CTkLabel(self.settings_frame,
+                                                       text="Appearance:")
+        self.appearance_label.grid(row=0, column=0, padx=10, pady=10)
+        self.appearance_mode = customtkinter.CTkComboBox(self.settings_frame,
+                                                         values=["System", "Light", "Dark"])
+        self.appearance_mode.grid(row=0, column=1, padx=10, pady=10)
+
+        self.no_repeat_label = customtkinter.CTkLabel(self.settings_frame,
+                                                      text="No Repeat Enable:")
+        self.no_repeat_label.grid(row=1, column=0, padx=10, pady=10)
+        self.no_repeat_enable = customtkinter.CTkCheckBox(self.settings_frame,
+                                                          text="")
+        self.no_repeat_enable.grid(row=1, column=1, padx=10, pady=10)
+
+        self.upgrade_tracker_label = customtkinter.CTkLabel(self.settings_frame,
+                                                            text="Upgrade Tracker Enable:")
+        self.upgrade_tracker_label.grid(row=2, column=0, padx=10, pady=10)
+        self.upgrade_tracker_enable = customtkinter.CTkCheckBox(self.settings_frame,
+                                                                text="")
+        self.upgrade_tracker_enable.grid(row=2, column=1, padx=10, pady=10)
+
+        self.upgrade_interval_label = customtkinter.CTkLabel(self.settings_frame,
+                                                             text="Upgrade Interval:")
+        self.upgrade_interval_label.grid(row=3, column=0, padx=10, pady=10)
+        self.upgrade_interval = customtkinter.CTkComboBox(self.settings_frame,
+                                                          values=["1",
+                                                                  "2",
+                                                                  "3",
+                                                                  "4",
+                                                                  "5",
+                                                                  "6"])
+        self.upgrade_interval.grid(row=3, column=1, padx=10, pady=10)
+
+        self.logging_level_label = customtkinter.CTkLabel(self.settings_frame,
+                                                          text="Logging Level:")
+        self.logging_level_label.grid(row=4, column=0, padx=10, pady=10)
+        self.logging_level = customtkinter.CTkComboBox(self.settings_frame,
+                                                       values=["INFO",
+                                                               "DEBUG",
+                                                               "ERROR",
+                                                               "CRITICAL"])
+        self.logging_level.grid(row=4, column=1, padx=10, pady=10)
+        self.buttons_frame = customtkinter.CTkFrame(self)
+        self.buttons_frame.grid(row=1, column=0, sticky="nsew", padx=10, pady=10)
+        self.load_button = customtkinter.CTkButton(self.buttons_frame,
+                                                   text="Load options from file",
+                                                   command=lambda: [self.load_settings()])
+        self.load_button.grid(row=0, column=0, padx=10, pady=10)
+        self.save_button = customtkinter.CTkButton(self.buttons_frame,
+                                                   text="Apply and Save",
+                                                   command=lambda: [self.save_settings()])
+        self.save_button.grid(row=1, column=0, padx=10, pady=10)
+
+        self.settings = app.settings
+        self.logs = app.logs
+        self.app = app
+
+    def load_settings(self):
+        """Load the settings"""
+        appearance = self.settings.read('APPEARANCE')
+        if appearance['success']:
+            self.appearance_mode.set(appearance['result'])
+        else:
+            self.logs.debug(appearance['result'])
+
+        no_repeat = self.settings.read('NO_REPEAT')
+        if no_repeat['success']:
+            if no_repeat['result'] == 'Yes':
+                self.no_repeat_enable.select()
+            else:
+                self.no_repeat_enable.deselect()
+        else:
+            self.logs.debug(no_repeat['result'])
+
+        upgrade_tracker = self.settings.read('UPGRADE_TRACKER')
+        if upgrade_tracker['success']:
+            if upgrade_tracker['result'] == 'Yes':
+                self.upgrade_tracker_enable.select()
+            else:
+                self.upgrade_tracker_enable.deselect()
+        else:
+            self.logs.debug(upgrade_tracker['result'])
+
+        upgrade_interval = self.settings.read('UPGRADE_INTERVAL')
+        if upgrade_interval['success']:
+            self.upgrade_interval.set(upgrade_interval['result'])
+        else:
+            self.logs.debug(upgrade_interval['result'])
+
+    def save_settings(self):
+        """Save the settings"""
+        self.settings.modify('APPEARANCE', self.appearance_mode.get())
+        customtkinter.set_appearance_mode(self.appearance_mode.get())
+        self.settings.modify('NO_REPEAT',
+                             'Yes' if self.no_repeat_enable.get() == 1 else 'No')
+        self.settings.modify('UPGRADE_TRACKER',
+                             'Yes' if self.upgrade_tracker_enable.get() == 1 else 'No')
+        self.settings.modify('UPGRADE_INTERVAL',
+                             self.upgrade_interval.get())
 
 class Logs:
     """Class to manage logs"""
@@ -91,7 +209,7 @@ class Settings:
     def __init__(self, app):
         self.logs = app.logs
         self.file = app.file
-        self.settings = {
+        self.default_settings = {
             'APPEARANCE': 'System',
             'UPGRADE_TRACKER': 'Yes',
             'UPGRADE_INTERVAL': '3',
@@ -113,7 +231,7 @@ class Settings:
         else:
             self.logs.error(x['result'])
         # Check each setting to verify its in the INI
-        for key, value in self.settings.items():
+        for key, value in self.default_settings.items():
             z = utilities.Ini.load(self.file, 'APP', key)
             if z['success']:
                 self.logs.debug(f"Read {key} = {z['result']} from {self.file}")
@@ -147,7 +265,13 @@ class Settings:
             self.logs.error(x['result'])
         return x
 
-class Roll:
+    def apply_all(self):
+        """Apply all the settings"""
+        self.logs.debug("Applying all settings..")
+        customtkinter.set_appearance_mode(self.read('APPEARANCE')['result'])
+
+
+class Roll():
     """Class to manage randomization"""
     # pylint: disable=too-many-instance-attributes
     # To be reviewed further
@@ -223,7 +347,6 @@ class Roll:
         selected_time = options.time_of_day[random.randint(0, len(options.time_of_day) - 1)]
         self.logs.debug(f"Selected time: {selected_time}")
         self.time_text.configure(text=selected_time)
-
 
 class History:
     """Class to manage the session history"""
